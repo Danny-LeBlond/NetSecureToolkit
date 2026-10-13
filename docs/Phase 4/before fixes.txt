@@ -1,0 +1,118 @@
+
+# #################
+#
+# WARNING: This program is intentionally EXTREMELY insecure and for educational purposes only.
+# Do NOT run on your host system. Use a virtual machine or sandbox.
+# 
+# #################
+
+import os
+import pickle
+import socket
+
+USERNAME = "admin"
+PASSWORD = "password"
+SECRET_KEY = "secretkey" 
+
+
+def login():
+    try:
+        user = input("Enter username: ")
+        pwd = input("Enter password: ")
+
+        if user == USERNAME and pwd == PASSWORD:
+            print("Login successful")
+        else:
+            print("Login failed")
+    except:
+        pass  
+
+def run_command():
+    user_input = input("Enter a system command: ")
+
+    # Dangerous examples:
+    # Linux/macOS: rm -rf ~/testdir
+    # Windows: rmdir /s /q C:\\Users\\Public\\testdir
+
+    print("Executing command...")
+    os.system(user_input)
+
+
+def deserialize_data():
+    data = input("Enter serialized data: ")
+    raw_bytes = data.encode('latin1')
+    obj = pickle.loads(raw_bytes)  
+    print("Deserialized object:", obj)
+
+
+def unsafe_eval():
+    expr = input("Enter a Python expression: ")
+    result = eval(expr)  
+    print("Result:", result)
+
+
+def write_file():
+    filename = input("Enter filename: ")
+    content = input("Enter content: ")
+
+    with open(filename, 'w') as f:
+        f.write(content)
+
+    print("File written.")
+
+
+def backdoor():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("0.0.0.0", 9999))
+    s.listen(1)
+
+    print("Backdoor listening on port 9999...")
+
+    conn, addr = s.accept()
+    print("Connection from", addr)
+
+    while True:
+        command = conn.recv(1024).decode()
+        if command.lower() == 'exit':
+            break
+
+        output = os.popen(command).read()
+        conn.send(output.encode())
+
+    conn.close()
+
+# -----------------------------
+# MAIN MENU
+# -----------------------------
+def main():
+    while True:
+        print("\nMenu:")
+        print("1. Login")
+        print("2. Run System Command")
+        print("3. Deserialize Data")
+        print("4. Unsafe Eval")
+        print("5. Write File")
+        print("6. Start Backdoor")
+        print("7. Exit")
+
+        choice = input("Choose an option: ")
+
+        if choice == '1':
+            login()
+        elif choice == '2':
+            run_command()
+        elif choice == '3':
+            deserialize_data()
+        elif choice == '4':
+            unsafe_eval()
+        elif choice == '5':
+            write_file()
+        elif choice == '6':
+            backdoor()
+        elif choice == '7':
+            break
+        else:
+            print("Invalid choice")
+
+if __name__ == "__main__":
+    main()

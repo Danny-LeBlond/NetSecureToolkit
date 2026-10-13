@@ -1,0 +1,201 @@
+import os
+import pickle
+import socket
+
+# Renamed from USERNAME to VALID_USERNAME to make it clear this is the expected/allowed username used for validation
+VALID_USERNAME = "admin"
+PASSWORD = "password"
+SECRET_KEY = "secretkey" 
+
+
+def login():
+    # Limit login attempts to 3 to prevent brute force guessing of credentials
+    attempts = 0
+
+    while attempts < 3:  # Only allow 3 tries before stopping
+        user = input("Enter username: ")
+        pwd = input("Enter password: ")
+
+        # Compare user input to stored password instead of trusting input from user
+        # This is safer because it checks the input against known password before letting them in
+        if user == VALID_USERNAME and pwd == PASSWORD:
+            print("Login successful")
+            return True
+        else:
+            print("Login failed")
+            attempts += 1
+
+    print("Exiting.")
+    return False  
+
+def run_command():
+    # Only allow safe commands instead of letting user run anything  
+    allowed_commands = ["whoami", "dir", "hostname", "date /t", "time /t", "echo hello"]
+    attempts = 0  # Track invalid command attempts
+
+    while attempts < 5:  # Allow up to 5  tries
+        
+        user_input = input("Enter a system command: ")
+
+        # Check if command is in allowed list
+        if user_input in allowed_commands:
+            print("Executing command...")
+            os.system(user_input)
+            return
+        else:
+            print("Command not allowed. Allowed commands: whoami, dir, hostname, date /t, time /t, echo hello")
+            attempts += 1  # Count bad attempts
+
+    # Exit after too many invalid attempts
+    print("Exiting.")
+
+
+def deserialize_data():
+    # Added validation and safer handling for user input
+    # Note: pickle is still unsafe for user input and should not be used in real programs
+
+    data = input("Enter serialized data: ")
+
+    # Reject empty input so it does not try to run eval on blank input which could cause errors or unnecessary processing
+    if not data.strip():
+        print("Invalid input")
+        return
+
+    # Limit input length to reduce risk of large or malicious input being processed
+    if len(data) > 100:
+        print("Input too long")
+        return
+
+    try:
+        raw_bytes = data.encode('latin1')
+        obj = pickle.loads(raw_bytes)
+
+        # Only allow simple safe data types so unexpected or complex objects are rejected
+        # It helps lower the risk by limiting what kind of data can be created from user input
+        if not isinstance(obj, (str, int, float, list, dict)):
+            print("Invalid data type")
+            return
+
+        print("Deserialized object:", obj)
+
+    except:
+        # Catch errors so the program does not crash when invalid or bad input is given
+        print("Invalid")
+
+
+def unsafe_eval():
+    # Restrict eval to simple math only to prevent arbitrary code execution
+    # Only allow digits, spaces, and basic math operators
+    allowed_chars = set("0123456789+-*/%() .")
+
+    expr = input("Enter a Python expression: ")
+
+    # Reject empty input so it does not try to evaluate blank input which can cause errors
+    if not expr.strip():
+        print("Invalid input")
+        return
+
+    # Check every character is allowed so the user cannot include letters or code keywords
+    # This helps block dangerous input and limits eval to only simple math expressions
+    for ch in expr:
+        if ch not in allowed_chars:
+            print("Invalid")
+            return
+
+    try:
+        # This is safer because only simple math characters are allowed, so eval cannot run full Python code
+        result = eval(expr)
+        print("Result:", result)
+    except:
+        # This is safer because bad input is handled without crashing the program
+        print("Invalid expression")
+
+
+def write_file():
+    # Only allow a simple file name and save it as a .txt file on the desktop
+    filename = input("Enter filename only: ")
+    content = input("Enter content: ")
+
+    # Reject file paths and only allow a simple file name
+    if "\" in filename or "/" in filename or "." in filename:
+        print("Only the name")
+        return
+
+    # Build a fixed safe base path (Desktop) so the user cannot choose arbitrary locations
+    # This is safer because it prevents writing files anywhere
+    desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+
+    # Create the final path using only the validated filename and a forced .txt extension
+    # This is safer because it blocks other file types like .exe, .bat, or .py, ect
+    full_path = os.path.join(desktop_path, filename + ".txt")
+
+    with open(full_path, 'w') as f:
+        f.write(content)
+
+    print("File written.")
+
+
+def backdoor():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Bind to 127.0.0.1 so only the local machine can connect (not the whole network)
+    # This is safer because it blocks external devices
+    s.bind(("127.0.0.1", 9999))
+
+    s.listen(1)
+    s.settimeout(10)  # Limit how long it waits for a connection so it does not stay open forever waiting for someone to connect
+
+    print("Backdoor listening on port 9999...")
+
+    try:
+        conn, addr = s.accept()
+        print("Connection from", addr)
+
+        while True:
+            command = conn.recv(1024).decode()
+            if command.lower() == 'exit':
+                break
+
+            # Disable remote command execution
+            # This is safer because it prevents an attacker from running commands on the system
+            conn.send("Remote commands disabled".encode())
+
+        conn.close()
+
+    except:
+        # Prevents the program from hanging if no connection is made and reduces exposure by closing after a short time
+        print("No connection")
+
+
+def main():
+    while True:
+        print("\nMenu:")
+        print("1. Login")
+        print("2. Run System Command")
+        print("3. Deserialize Data")
+        print("4. Unsafe Eval")
+        print("5. Write File")
+        print("6. Start Backdoor")
+        print("7. Exit")
+
+        choice = input("Choose an option: ")
+
+        if choice == '1':
+            login()
+        elif choice == '2':
+            run_command()
+        elif choice == '3':
+            deserialize_data()
+        elif choice == '4':
+            unsafe_eval()
+        elif choice == '5':
+            write_file()
+        elif choice == '6':
+            backdoor()
+        elif choice == '7':
+            break
+        else:
+            print("Invalid choice")
+
+if __name__ == "__main__":
+    main()
